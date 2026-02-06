@@ -178,7 +178,7 @@ wandb.finish()
 print("数据同步完成！点击上方链接即可查看曲线。")
 ```
 loss曲线如图
-![loss](./images/loss.png)
+![loss](./images/loss2.png)
 ## 📖 运行效果
 - 使用[RWKV-Runner](https://github.com/josStorer/RWKV-Runner)运行，按照官方的教程完成部署。  
 - 将rwkv7-g1c-1.5b-20260110-ctx8192.pth放入model目录，将训练好的state模型rwkv-9.pth放入state-models目录。  
