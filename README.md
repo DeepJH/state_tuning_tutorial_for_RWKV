@@ -40,51 +40,26 @@ RWKV 是纯 RNN 架构，因此能够实现 Transformer 难以做到的功能。
 
 微调数据要求：[准备微调数据](https://www.rwkv.cn/tutorials/advanced/Fine-Tune/FT-Dataset)
 
-本教程使用数据集 [NekoQA-10K](https://huggingface.co/datasets/liumindmind/NekoQA-10K)。
+本次示例将实现[视频](https://space.bilibili.com/1459296148/lists/7256133?type=season)中的NEGA（Native English Grammar Assistant）
+![NEGAS](./images/NEGAS.png)
+1. 使用[浏览器插件](https://chromewebstore.google.com/detail/%E7%88%B1%E5%93%94%E5%93%94-bilibili-b%E7%AB%99%E5%8A%A9%E6%89%8B/nabiilbmnbbgdbhkgdghdbcldakfeofd)，批量下载B站上所有的NEGA对话视频
 
-使用 `json_to_jsonl.py` 将 json 数据集转换成 jsonl 数据集：
-```
-import json
+2. 使用[buzz](https://github.com/chidiwilliams/buzz)，批量将视频中的对话提取为SRT字幕文件  
 
-# 定义输入和输出文件名
-input_filename = 'NekoQA-10K.json'
-output_filename = 'NekoQA-10K.jsonl'
+3. 使用[`nigga_to_NEGA_and_srt_to_jsonl.py`](./files/nigga_to_NEGA_and_srt_to_jsonl.py)将SRT字幕文件转换合成为jsonl数据集，并纠正部分语音识别错误，得到[`NEGA.jsonl`](files/NEGA.jsonl)
+![NEGA.jsonl.png](./images/NEGA.jsonl.png)
+4. 在vscode中使用查找替换功能，手动纠正语音转文字的错误
 
-def convert_json_to_jsonl(input_file, output_file):
-    try:
-        # 1. 读取原始 JSON 文件
-        with open(input_file, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        
-        # 2. 遍历数据并写入 JSONL
-        with open(output_file, 'w', encoding='utf-8') as f:
-            for entry in data:
-                # 获取指令和输出内容
-                instruction = entry.get('instruction', '')
-                output = entry.get('output', '')
-                
-                # 按照指定格式拼接字符串
-                # 注意：这里使用了 \n\n 作为 User 和 Assistant 之间的分隔
-                formatted_text = f"User: {instruction}\n\nAssistant: {output}"
-                
-                # 构建最终的字典结构
-                line_data = {"text": formatted_text}
-                
-                # 将字典转为 JSON 字符串并写入文件（确保不转义中文）
-                f.write(json.dumps(line_data, ensure_ascii=False) + '\n')
-        
-        print(f"转换成功！已生成文件: {output_file}")
+5. 由于数据量非常少，只有17行，还需要合成一些数据。使用[`prompt_generate_generate_NEGA_explain.md`](./files/prompt_generate_generate_NEGA_explain.md)、[`prompt_generate_generate.md`](./files/prompt_generate_generate.md)、[`prompt_generate_NEGA_explain.md`](./files/prompt_generate_NEGA_explain.md)、[`prompt_generate.md`](./files/prompt_generate.md)提示词，让gemini生成更多数据。反复多次。
 
-    except Exception as e:
-        print(f"发生错误: {e}")
-
-# 执行转换
-convert_json_to_jsonl(input_filename, output_filename)
-```
+6. 得到最终数据集[`NEGA_PLUS.jsonl`](files/NEGA_PLUS.jsonl)
+![NEGA_PLUS.jsonl.png](./images/NEGA_PLUS.jsonl.png)
 
 ## 🛠️ 配置训练环境
 
 配置训练环境可参考[配置训练环境](https://www.rwkv.cn/tutorials/advanced/Fine-Tune/FT-Environment)。
+
+使用conda创建多个虚拟环境，各自安装依赖，防止依赖相互冲突，主要分为：微调（RWKV-PEFT）、推理（RWKV-Runner）、数据整理。
 
 ## 📥 克隆仓库并安装依赖
 
@@ -107,18 +82,17 @@ pip install -r requirements.txt
 # 🚀 训练
 ## 🔧 调整训练参数
 使用任意文本编辑器编辑`RWKV-PEFT/scripts/state tuning.sh`文件，修改训练参数，进而控制微调的训练过程和训练效果：
-```
-
-load_model="/home/deepjh/workspace/state_tuning_tutorial_for_RWKV/rwkv7-g1c-1.5b-20260110-ctx8192.pth"
-proj_dir="/home/deepjh/workspace/state_tuning_tutorial_for_RWKV/RWKV-PEFT"
-data_file="/home/deepjh/workspace/state_tuning_tutorial_for_RWKV/NekoQA-10K.jsonl"
+```sh
+load_model="/home/deepjh/workspace/RWKV_LAB/models/rwkv7-g1c-1.5b-20260110-ctx8192.pth"
+proj_dir="/home/deepjh/workspace/RWKV_LAB/project_tuning/RWKV-PEFT/state-models"
+data_file="/home/deepjh/workspace/RWKV_LAB/dataset/NEGA_PLUS.jsonl"
 #/home/rwkv/JL/data/roleplay
 n_layer=24
 n_embd=2048
 
-micro_bsz=4
+micro_bsz=8
 epoch_save=1
-epoch_steps=10066
+epoch_steps=2560
 ctx_len=512
 
 python train.py --load_model $load_model \
@@ -127,62 +101,32 @@ python train.py --load_model $load_model \
 --data_type jsonl \
 --n_layer $n_layer --n_embd $n_embd \
 --ctx_len $ctx_len --micro_bsz $micro_bsz \
---epoch_steps $epoch_steps --epoch_count 10 --epoch_save $epoch_save \
---lr_init 1e-3 --lr_final 1e-5 \
+--epoch_steps $epoch_steps --epoch_count 4 --epoch_save $epoch_save \
+--lr_init 5e-5 --lr_final 5e-6 \
 --accelerator gpu --precision bf16 \
 --devices 1 --strategy deepspeed_stage_1 --grad_cp 1 \
 --my_testing "x070" \
---peft state --op fla
+--peft state --op fla \
+--wandb NEGA
+
 ```
 ## 🚀 开始训练
-更改文件名state tuning.sh为state_tuning.sh，以防止因空格出现命令错误。
-在 RWKV-PEFT 目录下，运行 sh scripts/state_tuning.sh 命令，开始 state tuning 。  
+在 RWKV-PEFT 目录下，运行`sh scripts/state/ tuning.sh`命令，开始 state tuning 。  
 正常开始训练后，应当是如下画面，然后等待训练完成：
-![training](./images/training.png )
+![training](./images/training_NEGA.png )
 
 # 📊 结果
-## 📈 wandb loss 曲线
-- 执行代码
-- 注册wandb，准备好api key
-- 填入api key上传数据到wandb
+## 📈 wandb
+- 配置wandb。注册wandb，在命令行需要时填入api key。
+- 在RWKV-PEFT目录下执行`wandb sync wandb/offline-*`，同步本地所有数据。或者执行`wandb sync wandb/latest-run`仅同步最近一次运行。
 - 查看训练结果。
-```
-import wandb
-import json
 
-# 1. 初始化一个 W&B Run
-run = wandb.init(
-    project="post-training-log", 
-    name="loss-recovery-run",
-    notes="从本地 jsonl 文件恢复的 loss 曲线"
-)
-
-# 2. 读取并上传数据
-file_path = 'loss_data.jsonl'
-
-with open(file_path, 'r') as f:
-    for line in f:
-        # 解析每一行的 JSON 数据
-        data = json.loads(line)
-        
-        # 将数据发送到 W&B
-        # 注意：W&B 会按照你调用的顺序自动累加 step
-        wandb.log({
-            "loss": data["loss"],
-            "t_cost": data.get("t_cost", 0),
-            "kt_s": data.get("kt_s", 0)
-        })
-
-# 3. 结束上传
-wandb.finish()
-print("数据同步完成！点击上方链接即可查看曲线。")
-```
 loss曲线如图
-![loss](./images/loss2.png)
+![loss](./images/loss3.png)
 ## 📖 运行效果
 - 使用[RWKV-Runner](https://github.com/josStorer/RWKV-Runner)运行，按照官方的教程完成部署。  
-- 将rwkv7-g1c-1.5b-20260110-ctx8192.pth放入model目录，将训练好的state模型rwkv-9.pth放入state-models目录。  
+- 将rwkv7-g1c-1.5b-20260110-ctx8192.pth放入对应model目录，将训练好的state模型rwkv-3.pth放入state-models目录。  
 - 在config界面，新建一个配置，调整相关设置，点击右下角启动，如图
-![config](./images/config.png)
+![config](./images/config2.png)
 - 回到chat即可聊天，效果如图：
-![chat](./images/chat_0.png)
+![chat](./images/chat_0_2.png)
