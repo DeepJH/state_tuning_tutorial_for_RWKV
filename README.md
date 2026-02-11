@@ -128,3 +128,4 @@ python train.py --load_model $load_model \
 ![config](./images/config2.png)
 - 回到chat即可聊天，效果如图：
 ![chat](./images/chat_0_2.png)
+训练好的[`NEGA_PLUS1.0`](files/rwkv-3.pth)[doge]
