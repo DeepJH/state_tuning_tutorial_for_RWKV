@@ -119,13 +119,11 @@ python train.py --load_model $load_model \
 ## 📈 wandb
 - 配置wandb。注册wandb，在命令行需要时填入api key。
 - 在RWKV-PEFT目录下执行`wandb sync wandb/offline-*`，同步本地所有数据。或者执行`wandb sync wandb/latest-run`仅同步最近一次运行。
-- 查看训练结果。
-
-loss曲线如图
+- 查看训练结果。以下为loss曲线。
 ![loss](./images/loss3.png)
 ## 📖 运行效果
 - 使用[RWKV-Runner](https://github.com/josStorer/RWKV-Runner)运行，按照官方的教程完成部署。  
-- 将rwkv7-g1c-1.5b-20260110-ctx8192.pth放入对应model目录，将训练好的state模型rwkv-3.pth放入state-models目录。  
+- 将rwkv7-g1c-1.5b-20260110-ctx8192.pth放入对应model目录，将训练好的state模型rwkv-4.pth放入state-models目录。  
 - 在config界面，新建一个配置，调整相关设置，点击右下角启动，如图
 ![config](./images/config2.png)
 - 回到chat即可聊天，效果如图：
